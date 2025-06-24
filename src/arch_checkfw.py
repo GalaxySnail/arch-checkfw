@@ -93,11 +93,10 @@ def get_firmware(mod, kernel_version=None):
 
 def main():
     for m in auto_detect_modules():
+        print(f"--- {m} ---")
         fws = get_firmware(m)
-        if fws:
-            print(f"--- {m} ---")
-            for fw in fws:
-                print(fw)
+        for fw in fws:
+            print(fw)
 
 
 if __name__ == "__main__":
