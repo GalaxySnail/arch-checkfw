@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import os
 import sys
+import argparse
+import itertools
 import re
 import subprocess
 
@@ -33,6 +35,8 @@ def detect_drivers_modaliases():
 
 
 def resolve_modalias(mods, kernel_version=None):
+    assert not isinstance(mods, str)
+
     modprobe_cmd = ["modprobe"]
     if kernel_version:
         modprobe_cmd.extend(["-S", kernel_version])
@@ -46,6 +50,8 @@ def resolve_modalias(mods, kernel_version=None):
 
 
 def resolve_module_depends(mods, kernel_version=None):
+    assert not isinstance(mods, str)
+
     def get_depends(mod):
         modinfo_cmd = ["modinfo", "-F", "depends"]
         if kernel_version:
@@ -91,12 +97,58 @@ def get_firmware(mod, kernel_version=None):
     return result.stdout.splitlines()
 
 
+def search_firmware(fws):
+    assert not isinstance(fws, str)
+
+    pacfiles_cmd = ["pacfiles", "-q"]
+    pacfiles_cmd.extend(f"usr/lib/firmware/{fw}*" for fw in fws)
+
+    result = subprocess.run(pacfiles_cmd, stdout=subprocess.PIPE,
+                            encoding="UTF-8", check=False)
+    if result.returncode not in [0, 1]:
+        result.check_returncode()
+
+    return set(result.stdout.splitlines())
+
+
+def get_argparser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", action="count", default=0,
+                        help="show all detected modules; give twice to show "
+                             "all firmware files required by modules")
+    return parser
+
+
 def main():
-    for m in auto_detect_modules():
-        print(f"--- {m} ---")
+    parser = get_argparser()
+    args = parser.parse_args()
+
+    fw_module_map = {}
+
+    for m in auto_detect_modules(False):
+        if args.verbose >= 1:
+            print(f"--- {m} ---")
+
         fws = get_firmware(m)
-        for fw in fws:
-            print(fw)
+        if args.verbose >= 2:
+            for fw in fws:
+                print(fw)
+
+        packages = set()
+        # use batched to avoid argv size limit
+        for batch_fws in itertools.batched(fws, 100):
+            packages |= search_firmware(batch_fws)
+
+        for package in sorted(packages):
+            if args.verbose >= 1:
+                print(f"requires package: {package}")
+            fw_module_map.setdefault(package, []).append(m)
+
+    if args.verbose >= 1:
+        print()
+
+    for package, mods in fw_module_map.items():
+        print(f"{package} is required by {', '.join(mods)}")
 
 
 if __name__ == "__main__":
