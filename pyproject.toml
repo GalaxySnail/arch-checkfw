@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arch-checkfw"
+version = "1.0.0"
+description = "auto detect required firmware packages on Arch Linux"
+requires-python = ">=3.12"
+authors = [
+    {name = "GalaxySnail", email = "me@glxys.nl"},
+]
+license = "GPL-2.0-or-later"
+
+[project.urls]
+GitHub = "https://github.com/GalaxySnail/arch-checkfw"
+
+[project.scripts]
+arch-checkfw = "arch_checkfw:main"
