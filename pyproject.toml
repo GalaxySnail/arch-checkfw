@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arch-checkfw"
-version = "1.0.0"
+version = "1.1.0"
 description = "auto detect required firmware packages on Arch Linux"
 requires-python = ">=3.12"
 authors = [

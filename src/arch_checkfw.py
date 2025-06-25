@@ -111,6 +111,40 @@ def search_firmware(fws):
     return set(result.stdout.splitlines())
 
 
+def check_pacfiles_db():
+    DBPATH = "/var/lib/pacman/sync"
+    if not (os.access(f"{DBPATH}/core.pacfiles", os.F_OK)
+            and os.access(f"{DBPATH}/extra.pacfiles", os.F_OK)):
+        print("Please run `sudo pacfiles -y` to update databases.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    def check_mtime(name):
+        db = f"{name}.db"
+        files = f"{name}.files"
+        pacfiles = f"{name}.pacfiles"
+
+        db_mtime = os.stat(f"{DBPATH}/{db}").st_mtime
+        files_mtime = os.stat(f"{DBPATH}/{files}").st_mtime
+        pacfiles_mtime = os.stat(f"{DBPATH}/{pacfiles}").st_mtime
+
+        if pacfiles_mtime < files_mtime:
+            print(f"[warning] {pacfiles} is older than {files}. "
+                  "Please run `sudo pacfiles --update-db` first.",
+                  file=sys.stderr)
+
+        mtime_delta_s = files_mtime - db_mtime
+        if abs(mtime_delta_s) > 2 * 60 * 60:  # 2 hours
+            from datetime import timedelta
+            mtime_delta = timedelta(seconds=abs(mtime_delta_s))
+            print(f"[warning] {files} is {mtime_delta} "
+                  f"{'newer' if mtime_delta_s > 0 else 'older'} than {db}.",
+                  file=sys.stderr)
+
+    check_mtime("core")
+    check_mtime("extra")
+
+
 def get_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="count", default=0,
@@ -122,6 +156,8 @@ def get_argparser():
 def main():
     parser = get_argparser()
     args = parser.parse_args()
+
+    check_pacfiles_db()
 
     fw_module_map = {}
 
